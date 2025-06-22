@@ -1,0 +1,75 @@
+name: Workflow Cleanup
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: '选择执行的清理操作'
+        required: true
+        default: 'default_cleanup'
+        type: choice
+        options:
+          - default_cleanup
+          - clear_all_failures
+          - clear_all_workflows
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Default Cleanup
+        if: github.event.inputs.action == 'default_cleanup'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          workflow_ids=$(gh api /repos/$GITHUB_REPOSITORY/actions/workflows | jq -r '.workflows[].id')
+          for workflow_id in $workflow_ids; do
+            runs=$(gh api /repos/$GITHUB_REPOSITORY/actions/workflows/$workflow_id/runs -f status='success,failure' -f per_page=100 | jq -r '.workflow_runs | sort_by(.completed_at) | reverse | .[] | {id: .id, status: .status, conclusion: .conclusion, created_at: .created_at} | @base64')
+            success_count=0
+            failure_count=0
+            for run in $runs; do
+              run_info=$(echo "$run" | base64 -d)
+              run_id=$(echo "$run_info" | jq -r '.id')
+              conclusion=$(echo "$run_info" | jq -r '.conclusion')
+              if [ "$conclusion" == "success" ]; then
+                ((success_count++))
+                if [ $success_count -gt 5 ]; then
+                  gh api -X DELETE /repos/$GITHUB_REPOSITORY/actions/runs/$run_id
+                fi
+              elif [ "$conclusion" == "failure" ]; then
+                ((failure_count++))
+                if [ $failure_count -gt 5 ]; then
+                  gh api -X DELETE /repos/$GITHUB_REPOSITORY/actions/runs/$run_id
+                fi
+              fi
+            done
+          done
+
+      - name: Clear All Failures
+        if: github.event.inputs.action == 'clear_all_failures'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          workflow_ids=$(gh api /repos/$GITHUB_REPOSITORY/actions/workflows | jq -r '.workflows[].id')
+          for workflow_id in $workflow_ids; do
+            runs=$(gh api /repos/$GITHUB_REPOSITORY/actions/workflows/$workflow_id/runs -f status='failure' -f per_page=100 | jq -r '.workflow_runs[].id')
+            for run_id in $runs; do
+              gh api -X DELETE /repos/$GITHUB_REPOSITORY/actions/runs/$run_id
+            done
+          done
+
+      - name: Clear All Workflows
+        if: github.event.inputs.action == 'clear_all_workflows'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          workflow_ids=$(gh api /repos/$GITHUB_REPOSITORY/actions/workflows | jq -r '.workflows[].id')
+          for workflow_id in $workflow_ids; do
+            runs=$(gh api /repos/$GITHUB_REPOSITORY/actions/workflows/$workflow_id/runs -f per_page=100 | jq -r '.workflow_runs[].id')
+            for run_id in $runs; do
+              gh api -X DELETE /repos/$GITHUB_REPOSITORY/actions/runs/$run_id
+            done
+          done  
