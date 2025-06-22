@@ -1,0 +1,122 @@
+name: Cleanup Workflows
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    inputs:
+      cleanup_mode:
+        description: '执行的清理模式'
+        required: true
+        type: choice
+        options:
+          - default_cleanup
+          - clear_all_failures
+          - clear_all_workflows
+        default: default_cleanup
+
+permissions:
+  actions: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pygithub
+      - name: Cleanup Workflows
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CLEANUP_MODE: ${{ inputs.cleanup_mode }}
+        run: |
+          cat << 'EOF' > cleanup_script.py
+          import os
+          import time
+          from datetime import datetime, timedelta
+          from github import Github, GithubException
+
+          CLEANUP_MODE = os.getenv('CLEANUP_MODE', 'default_cleanup')
+          REPO_NAME = os.getenv('GITHUB_REPOSITORY')
+
+          g = Github(os.getenv('GITHUB_TOKEN'))
+          repo = g.get_repo(REPO_NAME)
+
+          if CLEANUP_MODE == "clear_all_failures":
+              DAYS_TO_KEEP = 0
+              MAX_RUNS_TO_KEEP = 0
+              status_filter = "failure"
+              print("🔥 清除所有失败的工作流运行")
+          elif CLEANUP_MODE == "clear_all_workflows":
+              DAYS_TO_KEEP = 0
+              MAX_RUNS_TO_KEEP = 0
+              status_filter = "all"
+              print("💥 清除所有工作流运行（包括成功和失败的）")
+          else:
+              DAYS_TO_KEEP = 3
+              MAX_RUNS_TO_KEEP = 10
+              status_filter = "failure"
+              cutoff_date = datetime.utcnow() - timedelta(days=DAYS_TO_KEEP)
+
+          workflows = repo.get_workflows()
+
+          total_deleted = 0
+          workflows_processed = 0
+
+          for workflow in workflows:
+              workflows_processed += 1
+
+              runs = []
+              try:
+                  if CLEANUP_MODE == "clear_all_workflows":
+                      runs = list(workflow.get_runs())
+                  else:
+                      runs = list(workflow.get_runs(status=status_filter))
+              except GithubException as e:
+                  continue
+
+              sorted_runs = sorted(runs, key=lambda run: run.created_at)
+
+              kept = 0
+              deleted_in_workflow = 0
+
+              for run in sorted_runs:
+                  try:
+                      if run.status in ["queued", "in_progress"]:
+                          continue
+
+                      if CLEANUP_MODE == "clear_all_workflows" or CLEANUP_MODE == "clear_all_failures":
+                          run.delete()
+                          deleted_in_workflow += 1
+                          total_deleted += 1
+                      else:
+                          if kept < MAX_RUNS_TO_KEEP or run.created_at > cutoff_date:
+                              kept += 1
+                          else:
+                              run.delete()
+                              deleted_in_workflow += 1
+                              total_deleted += 1
+
+                  except GithubException as e:
+                      continue
+                  except Exception as e:
+                      continue
+
+              time.sleep(1)
+
+          if CLEANUP_MODE == "clear_all_workflows":
+              print(f"\n💥 清除完成! 共处理 {workflows_processed} 个工作流，清除 {total_deleted} 个运行")
+          elif CLEANUP_MODE == "clear_all_failures":
+              print(f"\n🔥 清除完成! 共处理 {workflows_processed} 个工作流，清除 {total_deleted} 个失败运行")
+          else:
+              print(f"\n✅ 清理完成! 共处理 {workflows_processed} 个工作流，删除 {total_deleted} 个失败运行")
+          EOF
+
+          python cleanup_script.py
