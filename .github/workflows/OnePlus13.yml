@@ -2,7 +2,7 @@ name: OnePlus13
 
 on:
   schedule:
-    - cron: '0 3 * * *'  
+    - cron: '0 0 */3 * *'
   workflow_dispatch:
     inputs:
       FILE:
@@ -262,7 +262,7 @@ jobs:
           path: ${{ env.WORKSPACE }}/AnyKernel3/*
           
       - name: Create Release
-        if: ${{ env.Release }}
+        if: ${{ env.Release == 'true' }}
         uses: softprops/action-gh-release@v2
         with:
           name: "${{ env.DEVICE }}-${{ env.KSUVER }}"
