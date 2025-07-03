@@ -1,4 +1,4 @@
-name: Cleanup Workflows
+name: Workflow Cleanup
 
 on:
   schedule:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       cleanup_mode:
-        description: '执行的清理模式'
+        description: 'Cleanup mode to execute'
         required: true
         type: choice
         options:
@@ -28,10 +28,12 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
+
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install pygithub
+
       - name: Cleanup Workflows
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -53,12 +55,12 @@ jobs:
               DAYS_TO_KEEP = 0
               MAX_RUNS_TO_KEEP = 0
               status_filter = "failure"
-              print("🔥 清除所有失败的工作流运行")
+              print("Clearing all failed workflow runs")
           elif CLEANUP_MODE == "clear_all_workflows":
               DAYS_TO_KEEP = 0
               MAX_RUNS_TO_KEEP = 0
               status_filter = "all"
-              print("💥 清除所有工作流运行（包括成功和失败的）")
+              print("Clearing all workflow runs")
           else:
               DAYS_TO_KEEP = 3
               MAX_RUNS_TO_KEEP = 10
@@ -112,11 +114,11 @@ jobs:
               time.sleep(1)
 
           if CLEANUP_MODE == "clear_all_workflows":
-              print(f"\n💥 清除完成! 共处理 {workflows_processed} 个工作流，清除 {total_deleted} 个运行")
+              print(f"\nCleanup completed! Processed {workflows_processed} workflows and deleted {total_deleted} runs")
           elif CLEANUP_MODE == "clear_all_failures":
-              print(f"\n🔥 清除完成! 共处理 {workflows_processed} 个工作流，清除 {total_deleted} 个失败运行")
+              print(f"\nCleanup completed! Processed {workflows_processed} workflows and deleted {total_deleted} failed runs")
           else:
-              print(f"\n✅ 清理完成! 共处理 {workflows_processed} 个工作流，删除 {total_deleted} 个失败运行")
+              print(f"\nCleanup completed! Processed {workflows_processed} workflows and deleted {total_deleted} outdated/failed runs")
           EOF
 
           python cleanup_script.py

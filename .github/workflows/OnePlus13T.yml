@@ -1,16 +1,14 @@
-name: OnePlus Ace5Pro
+name: OnePlus13T
 
 on:
-  # schedule:
-  #   - cron: '0 0 */3 * *'
+#   schedule:
+#     - cron: '0 0 */3 * *'
   workflow_dispatch:
     inputs:
       FILE:
         description: "Select configuration"
         required: true
-        type: choice
-        default: JiuGeFaCai_oneplus_ace5_pro_v
-        options: ['oneplus_ace5_pro', 'JiuGeFaCai_oneplus_ace5_pro_v']
+        default: oneplus_13t
       BUILD_METHOD:
         description: "Build method"
         required: true
@@ -20,11 +18,11 @@ on:
       KERNEL_TIME:
         description: "Build date"
         required: true
-        default: '2024-12-04 02:11:46 UTC'
+        default: '2024-12-17 23:36:49 UTC'
       KERNEL_NAME:
         description: "Kernel name"
         required: true
-        default: '-android15-8-g013ec21bba94-abogki383916444-4k'
+        default: '-android15-8-gba3bcfd39307-abogki413159095-4k'
       enable_KPM:
         description: "Enable KPM"
         required: false
@@ -35,17 +33,16 @@ on:
         required: false
         default: false
         type: boolean
-        
+
 permissions:
-  contents: write
+  contents: write  
 
 jobs:
   build:
     name: >-
       ${{ 
-        (github.event_name == 'schedule' && 'JiuACE5Pro') ||
-        (inputs.FILE == 'oneplus_ace5_pro' && 'ACE5Pro') ||
-        (inputs.FILE == 'JiuGeFaCai_oneplus_ace5_pro_v' && 'JiuACE5Pro')
+        (github.event_name == 'schedule' && 'OnePlus13T') ||
+        (inputs.FILE == 'oneplus_13t' && 'OnePlus13T')
       }}
       (${{ 
         (github.event_name == 'schedule' && 'Clang') ||
@@ -57,10 +54,10 @@ jobs:
       - name: Set Trigger and Environment
         run: |
           if [ "${{ github.event_name }}" = "schedule" ]; then
-            echo "FILE=JiuGeFaCai_oneplus_ace5_pro_v" >> $GITHUB_ENV
+            echo "FILE=oneplus_13t" >> $GITHUB_ENV
             echo "BUILD_METHOD=Clang" >> $GITHUB_ENV
-            echo "KERNEL_TIME=2024-12-04 02:11:46 UTC" >> $GITHUB_ENV
-            echo "KERNEL_NAME=-android15-8-g013ec21bba94-abogki383916444-4k" >> $GITHUB_ENV
+            echo "KERNEL_TIME=2024-12-17 23:36:49 UTC" >> $GITHUB_ENV
+            echo "KERNEL_NAME=-android15-8-gba3bcfd39307-abogki413159095-4k" >> $GITHUB_ENV
             echo "enable_KPM=false" >> $GITHUB_ENV
             echo "Release=false" >> $GITHUB_ENV
           else
@@ -130,8 +127,6 @@ jobs:
           cp ./SukiSU_patch/hooks/syscall_hooks.patch "$COMMON/"
           
           cd "$COMMON"
-          sed -i 's/-32,12 +32,38/-32,11 +32,37/g' 50_add_susfs_in_gki-android15-6.6.patch
-          sed -i '/#include <trace\/hooks\/fs.h>/d' 50_add_susfs_in_gki-android15-6.6.patch
           patch -p1 < "50_add_susfs_in_gki-android15-6.6.patch"
           
           patch -p1 -F 3 < "syscall_hooks.patch"
