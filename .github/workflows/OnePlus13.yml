@@ -231,7 +231,9 @@ jobs:
           
           cp "$IMAGE_DIR/Image" "$WORKSPACE/AnyKernel3/"
           cp "$IMAGE_DIR/Image" "$WORKSPACE/Out/"
-          
+
+      - name: Patch Kernel
+        run: |
           if [[ "${{ env.enable_KPM }}" == "true" ]]; then
             cd "$WORKSPACE/Out"
             curl -LO https://github.com/ShirkNeko/SukiSU_KernelPatch_patch/releases/download/0.12.0/patch_linux
