@@ -212,7 +212,7 @@ jobs:
             make "${BUILD_ARGS[@]}" gki_defconfig Image
           fi
                 
-      - name: Make AK3
+      - name: Move Kernel Image
         run: |
           cd "$WORKSPACE" && mkdir -p Out
           
@@ -228,15 +228,16 @@ jobs:
           cp "$IMAGE_DIR/Image" "$WORKSPACE/Out/"
 
       - name: Patch Kernel
+        if: ${{ env.enable_KPM == 'true' }}
         run: |
-          if [[ "${{ env.enable_KPM }}" == "true" ]]; then
-            cd "$WORKSPACE/Out"
-            curl -LO https://github.com/ShirkNeko/SukiSU_KernelPatch_patch/releases/download/0.12.0/patch_linux
-            chmod +x patch_linux && ./patch_linux
-            rm -rf patch_linux
-            cp oImage "$WORKSPACE/AnyKernel3/Image"
-          fi
-          
+          cd "$WORKSPACE/Out"
+          curl -LO https://github.com/ShirkNeko/SukiSU_KernelPatch_patch/releases/download/0.12.0/patch_linux
+          chmod +x patch_linux && ./patch_linux
+          rm -rf patch_linux
+          cp oImage "$WORKSPACE/AnyKernel3/Image"
+
+      - name: Make Ak3
+        run: |
           cd "$WORKSPACE/AnyKernel3"
           zip -r "$WORKSPACE/Out/${{ env.DEVICE }}-${{ env.KSUVER }}.zip" *
           
